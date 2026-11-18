@@ -1,32 +1,46 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { 
-  Camera as CameraType 
-} from "@/types/security";
+import React, { useState, useEffect, useRef } from "react";
+import { Camera as CameraType } from "@/types/security";
+import { VideoCanvas, VideoCanvasHandle } from "./VideoCanvas";
 import { 
   AlertTriangle, 
-  CheckCircle2, 
-  Video, 
-  Maximize2, 
   ShieldCheck, 
+  Maximize2, 
   Volume2, 
   VolumeX, 
   RotateCcw,
-  Eye
+  Camera as CameraIcon,
+  Moon,
+  Sun,
+  ZoomIn,
+  MapPin,
+  ExternalLink,
+  ShieldAlert,
+  Trash2
 } from "lucide-react";
 
 interface CameraCardProps {
   camera: CameraType;
   onResolveAlert: (cameraId: string) => void;
+  onInspectCamera?: (camera: CameraType) => void;
+  onTriggerEmergency?: (camera: CameraType) => void;
+  onDeleteCamera?: (cameraId: string) => void;
 }
 
 export const CameraCard: React.FC<CameraCardProps> = ({
   camera,
   onResolveAlert,
+  onInspectCamera,
+  onTriggerEmergency,
+  onDeleteCamera,
 }) => {
   const [timestamp, setTimestamp] = useState<string>("");
   const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [isNightVision, setIsNightVision] = useState<boolean>(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const canvasRef = useRef<VideoCanvasHandle | null>(null);
+
   const isAlert = camera.status === "alert";
 
   useEffect(() => {
@@ -47,162 +61,221 @@ export const CameraCard: React.FC<CameraCardProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  const handleCycleZoom = () => {
+    setZoomLevel((prev) => (prev === 1 ? 1.5 : prev === 1.5 ? 2 : 1));
+  };
+
+  const handleCaptureSnapshot = () => {
+    canvasRef.current?.captureSnapshot(camera.name);
+  };
+
   return (
     <div
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-slate-900 transition-all duration-300 shadow-lg ${
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-m3-3xl border transition-all duration-300 ${
         isAlert
-          ? "border-red-500 shadow-red-950/60 ring-2 ring-red-500/80 animate-pulse-fast"
-          : "border-slate-800 hover:border-slate-700/80 shadow-slate-950/50"
+          ? "bg-white dark:bg-m3-surface-container-low border-2 border-red-500 shadow-[0_4px_24px_rgba(239,68,68,0.22)] ring-1 ring-red-400"
+          : "bg-white dark:bg-m3-surface-container-low border-slate-200/90 dark:border-m3-outline-variant/40 hover:border-blue-400 dark:hover:border-m3-primary shadow-sm hover:shadow-md"
       }`}
     >
-      {/* Barra superior de la tarjeta (HUD Metadata) */}
-      <div className="flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 px-3 py-2 text-xs backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 rounded-full bg-cyan-400"></span>
-          <span className="font-semibold text-slate-200 tracking-wide">
-            {camera.name}
-          </span>
-          <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-            ({camera.location})
-          </span>
+      {/* 1. Barra Superior de la Tarjeta */}
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-m3-outline-variant/30 bg-slate-50/90 dark:bg-m3-surface-container/90 px-4 py-3 backdrop-blur-sm">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`flex h-3 w-3 shrink-0 rounded-full ${
+            isAlert ? "bg-red-500 animate-ping" : "bg-emerald-500"
+          }`} />
+          <div className="truncate">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-m3-on-surface truncate">
+              {camera.name}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-m3-on-surface-variant flex items-center gap-1 truncate">
+              <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+              <span>{camera.location}</span>
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="font-mono text-[10px] font-semibold text-slate-600 dark:text-m3-on-surface-variant bg-white dark:bg-m3-surface-container-highest px-2 py-0.5 rounded-full border border-slate-200 dark:border-m3-outline-variant/30 shadow-xs">
             {camera.fps} FPS
           </span>
-          <span className="font-mono text-[10px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+          <span className="font-mono text-[10px] font-semibold text-slate-600 dark:text-m3-on-surface-variant bg-white dark:bg-m3-surface-container-highest px-2 py-0.5 rounded-full border border-slate-200 dark:border-m3-outline-variant/30 shadow-xs">
             {camera.resolution}
           </span>
+          {onDeleteCamera && (
+            <button
+              onClick={() => onDeleteCamera(camera.id)}
+              title="Eliminar cámara"
+              className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Área de Visualización de Transmisión de Cámara (Simulación de Video) */}
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-950 flex items-center justify-center">
-        
-        {/* Grilla de fondo / HUD de seguridad */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
+      {/* 2. Área de Transmisión CCTV con VideoCanvas Interactivo */}
+      <div className="p-3 bg-white dark:bg-m3-surface-container-low">
+        <div className="relative aspect-video w-full overflow-hidden rounded-m3-2xl bg-black border border-slate-800 shadow-inner flex items-center justify-center">
+          
+          {/* Canvas Interactivo con renderizado en tiempo real */}
+          <VideoCanvas
+            ref={canvasRef}
+            cameraId={camera.id}
+            cameraName={camera.name}
+            isAlert={isAlert}
+            confidence={camera.confidence}
+            isNightVision={isNightVision}
+            zoomLevel={zoomLevel}
+          />
 
-        {/* Efecto de línea de escaneo (Scanline) */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent h-16 w-full animate-scanline" />
-
-        {/* Viñeta para ambientación cinematográfica */}
-        <div className="absolute inset-0 pointer-events-none bg-radial-vignette opacity-70" />
-
-        {/* Silueta visual de la cámara (Simulación gráfica de espacio monitoreado) */}
-        <div className="relative z-0 flex flex-col items-center justify-center text-slate-700 select-none">
-          <div className="relative w-24 h-24 rounded-full border border-dashed border-slate-700/50 flex items-center justify-center">
-            {/* Mirilla / Crosshair */}
-            <div className="absolute w-full h-[1px] bg-slate-700/40" />
-            <div className="absolute h-full w-[1px] bg-slate-700/40" />
-            <div className="w-8 h-8 rounded-full border border-slate-600/60" />
-            <Eye className="w-5 h-5 text-slate-600" />
-          </div>
-          <span className="mt-2 text-[11px] font-mono tracking-widest uppercase text-slate-600">
-            FEED ACTIVO // CANAL {camera.id.toUpperCase()}
-          </span>
-        </div>
-
-        {/* Caja Bounding Box de la IA cuando se detecta violencia */}
-        {isAlert && (
-          <div className="absolute z-10 top-1/4 left-1/4 w-1/2 h-1/2 border-2 border-red-500 rounded bg-red-500/10 pointer-events-none flex flex-col justify-between p-1 shadow-[0_0_20px_rgba(239,68,68,0.5)]">
-            <div className="flex items-center justify-between">
-              <span className="bg-red-600 text-white font-mono text-[9px] font-bold px-1 rounded uppercase tracking-wider animate-pulse">
-                OBJETO: CONFLICTO #{camera.id}
+          {/* Indicadores en esquina: REC + EN VIVO */}
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 pointer-events-none">
+            <div className="flex items-center gap-1.5 rounded-full bg-black/80 px-2.5 py-0.5 text-[11px] font-bold text-red-400 backdrop-blur-sm border border-red-900/40">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
               </span>
-              <span className="bg-red-950/80 text-red-300 font-mono text-[9px] px-1 rounded border border-red-600/50">
-                CONF: {camera.confidence || 94}%
-              </span>
+              <span>EN VIVO</span>
             </div>
+
+            {isNightVision && (
+              <div className="rounded-full bg-emerald-950/80 px-2 py-0.5 text-[10px] font-mono text-emerald-400 backdrop-blur-sm border border-emerald-800">
+                IR ON
+              </div>
+            )}
+
+            {zoomLevel > 1 && (
+              <div className="rounded-full bg-blue-950/80 px-2 py-0.5 text-[10px] font-mono text-blue-300 backdrop-blur-sm border border-blue-800">
+                {zoomLevel}X
+              </div>
+            )}
+          </div>
+
+          {/* Timestamp */}
+          <div className="absolute bottom-3 left-3 z-10 pointer-events-none">
+            <div className="rounded-full bg-black/80 px-2.5 py-0.5 font-mono text-xs text-slate-200 backdrop-blur-sm border border-slate-700/50">
+              {timestamp || "00:00:00"}
+            </div>
+          </div>
+
+          {/* Controles de cámara interactivos en el stream */}
+          <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5">
+            {/* Botón Visión Nocturna / IR */}
+            <button
+              onClick={() => setIsNightVision(!isNightVision)}
+              className={`m3-state-layer h-8 w-8 flex items-center justify-center rounded-full backdrop-blur-md transition-colors border ${
+                isNightVision 
+                  ? "bg-emerald-600 text-white border-emerald-400" 
+                  : "bg-black/75 text-white hover:bg-black/90 border-slate-700/50"
+              }`}
+              title={isNightVision ? "Desactivar Visión Nocturna" : "Activar Visión Nocturna Infrarroja"}
+            >
+              <Moon className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Botón Zoom Digital */}
+            <button
+              onClick={handleCycleZoom}
+              className="m3-state-layer h-8 w-8 flex items-center justify-center rounded-full bg-black/75 text-white hover:bg-black/90 transition-colors border border-slate-700/50"
+              title={`Zoom actual: ${zoomLevel}x (Clic para cambiar)`}
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Botón Tomar Captura de Pantalla PNG */}
+            <button
+              onClick={handleCaptureSnapshot}
+              className="m3-state-layer h-8 w-8 flex items-center justify-center rounded-full bg-black/75 text-white hover:bg-black/90 transition-colors border border-slate-700/50"
+              title="Descargar Foto / Evidencia PNG"
+            >
+              <CameraIcon className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Botón Silenciar */}
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className="m3-state-layer h-8 w-8 flex items-center justify-center rounded-full bg-black/75 text-white hover:bg-black/90 transition-colors border border-slate-700/50"
+              title={isMuted ? "Activar audio" : "Silenciar audio"}
+            >
+              {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            </button>
             
-            <div className="text-right">
-              <span className="text-[9px] font-mono text-red-400 bg-black/60 px-1 rounded">
-                DETECCIÓN EN TIEMPO REAL
+            {/* Botón Maximizar / Inspeccionar */}
+            {onInspectCamera && (
+              <button
+                onClick={() => onInspectCamera(camera)}
+                className="m3-state-layer h-8 w-8 flex items-center justify-center rounded-full bg-black/75 text-white hover:bg-black/90 transition-colors border border-slate-700/50"
+                title="Inspeccionar feed en detalle"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Banner Flotante en Alerta de Violencia */}
+          {isAlert && (
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-red-600 text-white px-3 py-1 text-xs font-bold shadow-lg animate-bounce">
+              <AlertTriangle className="h-3.5 w-3.5 fill-current text-yellow-300" />
+              <span>¡ALTERCADO DETECTADO!</span>
+              <span className="font-mono text-red-100 text-[10px]">
+                ({camera.confidence || 94}%)
               </span>
             </div>
-          </div>
-        )}
-
-        {/* Indicadores en esquina superior izquierda del stream: REC + EN VIVO */}
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded bg-black/75 px-2 py-1 text-[11px] font-bold text-red-400 backdrop-blur-sm border border-red-900/40">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-            <span>EN VIVO</span>
-          </div>
-
-          <div className="rounded bg-black/75 px-2 py-1 text-[10px] font-mono text-slate-300 backdrop-blur-sm border border-slate-800">
-            REC ●
-          </div>
+          )}
         </div>
-
-        {/* Timestamp en esquina inferior izquierda del stream */}
-        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2">
-          <div className="rounded bg-black/75 px-2 py-0.5 font-mono text-xs text-slate-300 backdrop-blur-sm border border-slate-800">
-            {timestamp || "12:00:00"}
-          </div>
-        </div>
-
-        {/* Controles de cámara rápidos (esquina inferior derecha) */}
-        <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 opacity-80 hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => setIsMuted(!isMuted)}
-            className="rounded bg-black/70 p-1 text-slate-300 hover:text-white hover:bg-black/90 transition-colors"
-            title={isMuted ? "Activar audio" : "Silenciar audio"}
-          >
-            {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            className="rounded bg-black/70 p-1 text-slate-300 hover:text-white hover:bg-black/90 transition-colors"
-            title="Pantalla completa"
-          >
-            <Maximize2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Alerta Banner Flotante dentro del video si hay violencia */}
-        {isAlert && (
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-lg bg-red-600/95 px-2.5 py-1 text-xs font-bold text-white shadow-lg shadow-red-950/80 animate-bounce">
-            <AlertTriangle className="h-4 w-4" />
-            <span>¡VIOLENCIA DETECTADA!</span>
-            <span className="font-mono text-red-200 text-[11px]">
-              ({camera.confidence || 94}%)
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* Pie de la tarjeta: Estado de la IA y Botón de Acción */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 bg-slate-950/90 px-3 py-2.5">
+      {/* 3. Pie de la Tarjeta con Acciones Funcionales */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-m3-outline-variant/30 bg-slate-50/80 dark:bg-m3-surface-container/90 px-4 py-3">
         
-        {/* Badge de Estado de la IA */}
+        {/* Badge Semántico M3 de Estado */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-400 font-medium">Estado IA:</span>
           {isAlert ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-950/80 border border-red-700/80 px-2.5 py-0.5 text-xs font-bold text-red-400 shadow-sm animate-pulse">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping" />
-              ¡VIOLENCIA ({camera.confidence || 94}%)!
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-m3-error-container dark:text-m3-on-error-container dark:border-m3-error/40 px-3 py-1 text-xs font-bold shadow-xs animate-pulse">
+              <span className="h-2 w-2 rounded-full bg-red-600 animate-ping" />
+              Alerta de Violencia ({camera.confidence || 94}%)
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/70 border border-emerald-800/60 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-              Normal
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-m3-tertiary-container dark:text-m3-on-tertiary-container dark:border-m3-tertiary/30 px-3 py-1 text-xs font-semibold">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-m3-tertiary" />
+              Normal / Despejado
             </span>
           )}
         </div>
 
-        {/* Botón de Falsa Alarma / Resolver cuando la cámara está en alerta */}
-        {isAlert && (
-          <button
-            onClick={() => onResolveAlert(camera.id)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100 hover:text-white border border-slate-700 hover:border-slate-600 transition-colors shadow-sm active:scale-95"
-          >
-            <RotateCcw className="h-3 w-3 text-amber-400" />
-            <span>Falsa alarma / Resolver</span>
-          </button>
-        )}
+        {/* Botones de Acción Funcionales */}
+        <div className="flex items-center gap-2">
+          {isAlert && onTriggerEmergency && (
+            <button
+              onClick={() => onTriggerEmergency(camera)}
+              className="m3-state-layer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              <span>Activar Protocolo</span>
+            </button>
+          )}
+
+          {isAlert ? (
+            <button
+              onClick={() => onResolveAlert(camera.id)}
+              className="m3-state-layer inline-flex items-center gap-1.5 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-m3-secondary-container dark:text-m3-on-secondary-container text-slate-800 px-3.5 py-1.5 text-xs font-semibold transition-all shadow-xs"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-amber-600" />
+              <span>Falsa Alarma</span>
+            </button>
+          ) : (
+            onInspectCamera && (
+              <button
+                onClick={() => onInspectCamera(camera)}
+                className="m3-state-layer inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-white dark:bg-m3-surface-container-highest border border-slate-200 dark:border-m3-outline-variant/50 text-xs font-medium text-slate-700 dark:text-m3-on-surface hover:bg-slate-100 dark:hover:bg-m3-surface-container-high transition-colors shadow-xs"
+              >
+                <span>Detalles</span>
+                <ExternalLink className="h-3 w-3 text-slate-400" />
+              </button>
+            )
+          )}
+        </div>
+
       </div>
     </div>
   );

@@ -1,6 +1,43 @@
-# SentinelEye AI - Monitoreo & Detección de Violencia (Frontend MVP)
+# SentinelEye AI - Monitoreo & Detección de Violencia (Material Design 3)
 
-MVP en Next.js (App Router), TypeScript y Tailwind CSS para monitoreo de cámaras de seguridad en tiempo real con detección de violencia asistida por Inteligencia Artificial.
+Sistema avanzado en Next.js (App Router), TypeScript y Tailwind CSS para centros de monitoreo con detección de violencia asistida por IA, diseñado bajo los estándares oficiales de **Google Material Design 3 (M3 / Material You)**.
+
+---
+
+## ⚡ Nuevas Funcionalidades Integradas
+
+1. **Simulación de Video Activa con HTML5 Canvas ([VideoCanvas.tsx](components/VideoCanvas.tsx))**:
+   - Renderizado en tiempo real de siluetas en movimiento en el entorno vigilado.
+   - Bounding boxes dinámicos que siguen el movimiento y detectan forcejeos/peleas físicas al dispararse una alerta.
+   - **Visión Nocturna Infrarroja (IR Mode)**: Alterna entre el modo CCTV estándar y modo infrarrojo con fósforo verde y reducción de ruido.
+   - **Zoom Digital PTZ**: Selector de aumento (1x, 1.5x, 2x) directamente sobre cada cámara.
+   - **Captura Forense de Evidencia**: Botón fotográfico que genera y descarga una captura real en formato `.png` en la computadora del operador.
+
+2. **Protocolo de Intervención Rápida ([EmergencyProtocolModal.tsx](components/EmergencyProtocolModal.tsx))**:
+   - Al detectar un altercado, el operador puede activar el protocolo de emergencia Código Rojo:
+     - *Despachar Guardia / Patrulla In Situ*.
+     - *Emitir reporte de emergencia a Central 911 / Policía*.
+     - *Bloquear puertas electromagnéticas y accesos perimetrales*.
+     - *Activar sirena sonora estroboscópica en el recinto*.
+     - *Bitácora de observaciones del operador*.
+
+3. **Locución y Alertas por Voz (Web Speech API)**:
+   - Sintetizador de voz en español integrado que anuncia verbalmente la cámara y ubicación afectada (ej: *"Alerta de seguridad. Conflicto detectado en Entrada Principal"*).
+
+4. **Conexión Dinámica de Nuevas Cámaras ([AddCameraModal.tsx](components/AddCameraModal.tsx))**:
+   - Permite vincular nuevas cámaras IP / RTSP al panel indicando nombre, sector, resolución (4K, 2K, 1080p) y FPS.
+   - Opción para eliminar canales desde sus tarjetas.
+
+5. **Exportación de Informes en CSV**:
+   - En el panel de incidentes, el operador puede descargar un reporte forense completo en formato `.csv` con IDs, coordenadas de tiempo, nivel de confianza y estado de resolución.
+
+6. **Calibración del Motor Neuronal ([AIConfigModal.tsx](components/AIConfigModal.tsx))**:
+   - Selector deslizante para ajustar el umbral de certeza (60% a 95%).
+   - Toggles para clases de eventos (Peleas físicas, Armas sospechosas, Caídas/desmayos).
+   - Modo de Demostración Continua: genera incidentes simulados automáticos cada 24 segundos.
+
+7. **Resolución en Lote**:
+   - Botón *"Resolver Todas"* en el panel lateral para limpiar incidentes verificados con un solo clic.
 
 ---
 
@@ -9,51 +46,11 @@ MVP en Next.js (App Router), TypeScript y Tailwind CSS para monitoreo de cámara
 1. **Instalar dependencias:**
    ```bash
    npm install
-   # o
-   pnpm install
-   # o
-   yarn install
    ```
 
-2. **Ejecutar el servidor de desarrollo:**
+2. **Ejecutar servidor de desarrollo:**
    ```bash
    npm run dev
    ```
 
 3. Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
-
----
-
-## 📁 Estructura del Proyecto
-
-```text
-├── app/
-│   ├── globals.css         # Estilos globales, efectos de escaneo y paleta Dark Mode
-│   ├── layout.tsx          # Layout raíz con metadatos y fuente
-│   └── page.tsx            # Dashboard principal: orquestación de estado y layout 70/30
-├── components/
-│   ├── Navbar.tsx          # Barra superior con reloj en tiempo real, estado IA y botón simulador
-│   ├── CameraCard.tsx      # Tarjeta individual con simulación de video, HUD, badges y alertas
-│   ├── CameraGrid.tsx      # Cuadrícula 2x2 responsiva de cámaras
-│   └── AlertsPanel.tsx     # Panel lateral cronológico con filtros y resolución de alertas
-├── data/
-│   └── mockCameras.ts      # Datos iniciales simulados de cámaras y registros históricos
-├── types/
-│   └── security.ts         # Definiciones TypeScript de cámaras, alertas y estados
-├── package.json
-├── tailwind.config.ts
-└── tsconfig.json
-```
-
----
-
-## 🔌 Integración Futura con Backend / WebSockets
-
-Este MVP está estructurado para conectarse de manera inmediata a un backend real (FastAPI, NestJS, Go, WebSockets o WebRTC):
-
-1. **WebSockets para Alertas en Tiempo Real:**
-   - En `app/page.tsx`, reemplaza el botón `handleSimulateDetection` o complementa con un hook `useSecurityWebSocket()` escuchando eventos `VIOLENCE_DETECTED`.
-2. **Transmisiones de Video en Vivo:**
-   - En `components/CameraCard.tsx`, reemplaza el contenedor de simulación de video por reproductores HLS (`hls.js`), WebRTC o streams RTSP convertidos a WebSockets (ej. `jsmpeg` o `mediamtx`).
-3. **Resolución de Alertas:**
-   - En `handleResolveAlertByCameraId` y `handleResolveSpecificAlert`, invoca una llamada HTTP `PATCH /api/alerts/:id` con la causa (`"false_alarm"` o `"resolved"`).

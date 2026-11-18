@@ -2,6 +2,13 @@ export type CameraStatus = 'normal' | 'alert';
 
 export type AlertResolutionStatus = 'pending' | 'resolved';
 
+export interface BoundingBox {
+  x: number; // Porcentaje x
+  y: number; // Porcentaje y
+  width: number;
+  height: number;
+}
+
 export interface Camera {
   id: string;
   name: string;
@@ -12,6 +19,7 @@ export interface Camera {
   confidence?: number; // Porcentaje de confianza IA (ej. 94)
   lastAlertTime?: string;
   thumbnailUrl?: string; // Para futuras miniaturas reales o feeds HLS/RTSP
+  boundingBox?: BoundingBox;
 }
 
 export interface SecurityAlert {
